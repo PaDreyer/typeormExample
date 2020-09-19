@@ -1,146 +1,18 @@
 import 'reflect-metadata'
-import { BaseEntity, Entity, PrimaryColumn, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne, Connection, EntityManager, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
+import { Connection, EntityManager } from 'typeorm';
 
+import User from './entities/user';
+import Customer from './entities/customer';
+import Message from './entities/message';
+import Role from './entities/role';
+import Group from './entities/group';
+import Image from './entities/image';
+import Ticket from './entities/ticket';
+import Ticketstate from './entities/ticketstate';
 
 type ObjectFunctions = () => Promise<void>;
 
 type FunctionObject = Record<string, ObjectFunctions>;
-
-@Entity({
-    database: "testdb",
-    name: "user"
-})
-class User {
-    @PrimaryGeneratedColumn()
-    public id!: number;
-
-    @Column('varchar', { length: 255 })
-    public firstname!: string;
-
-    @Column('varchar', { length: 255 })
-    public lastname!: string;
-
-    @OneToMany( type => Image, i => i.user )
-    @JoinColumn({ name: "images", referencedColumnName: "user" })
-    public images!: Image[];
-
-    @ManyToMany(type => User, u => u.id)
-    @JoinTable({
-        name: "friends",
-        joinColumn: {
-            name: "user",
-            referencedColumnName: "id"
-        },
-        inverseJoinColumn: {
-            name: "friend",
-            referencedColumnName: "id"
-        }
-    })
-    public friends!: User[];
-
-    @ManyToMany(type => Group, g => g.id)
-    @JoinTable({
-        name: "groups",
-        joinColumn: {
-            name: "user",
-            referencedColumnName: "id"
-        },
-        inverseJoinColumn: {
-            name: "group",
-            referencedColumnName: "id"
-        }
-    })
-    public groups!: Group[];
-
-    @OneToMany(type => Message, m => m.owner)
-    public outbound!: Message[]
-
-    @OneToMany(type => Message, m => m.receipent)
-    public inbound!: Message[]
-}
-
-@Entity({
-    database: "testdb",
-    name: "group"
-})
-class Group {
-    @PrimaryColumn('int')
-    public id!: number;
-
-    @Column('varchar')
-    public groupName!: string;
-
-    @ManyToMany(type => User, u => u.id)
-    @JoinTable({
-        name: "groups",
-        joinColumn: {
-            name: "group",
-            referencedColumnName: "id"
-        },
-        inverseJoinColumn: {
-            name: "user",
-            referencedColumnName: "id"
-        }
-    })
-    public member!: User[];
-
-    @OneToMany(type => Message, m => m.group)
-    public messages!: Message[];
-}
-
-@Entity({
-    database: "testdb",
-    name: "messages"
-})
-class Message {
-    @PrimaryGeneratedColumn()
-    public id!: number;
-
-    @Column('mediumtext')
-    public message!: string;
-
-    @ManyToOne(type => User, u => u.id)
-    @JoinColumn({
-        name: "owner",
-        referencedColumnName: "id"
-    })
-    public owner!: User;
-
-    @ManyToOne(type => User, u => u.id)
-    @JoinColumn({
-        name: "receipent",
-        referencedColumnName: "id"
-    })
-    public receipent!: User;
-
-    @Column('bool')
-    public read!: boolean;
-
-    @ManyToOne(type => Group, g => g.id)
-    @JoinColumn({
-        name: "group",
-        referencedColumnName: "id"
-    })
-    public group!: Group;
-}
-
-
-
-@Entity({
-    database: "testdb",
-    name: "images"
-})
-class Image {
-    @PrimaryGeneratedColumn()
-    public id!: number;
-
-    @Column('varchar')
-    public imageName!: string;
-
-    @ManyToOne(type => User, u => u.id )
-    @JoinColumn({ name: "user", referencedColumnName: "id" })
-    public user!: User;
-}
 
 
 (async ()=>{
@@ -156,7 +28,11 @@ class Image {
             User,
             Image,
             Group,
-            Message
+            Message,
+            Customer,
+            Role,
+            Ticket,
+            Ticketstate,
         ],
         synchronize: true,
         cache: false
@@ -167,21 +43,37 @@ class Image {
     const manager = new EntityManager(connection);
 
     const functionObj : FunctionObject = {
-        user: async () => {
-            const imageResults = await manager.find(User, { relations: [ "images", "friends" , "friends.friends", "friends.friends.friends", "outbound", "inbound", "groups" ]});
-            console.log("user: ", JSON.stringify(imageResults[0], null, 2))
+        users: async () => {
+            const imageResults = await manager.find(User, { relations: [ "images", "friends" , "friends.friends", "friends.friends.friends", "outbound", "inbound", "groups", "groups.member", "groups.messages", "customer", "customer.role", "customer.mandants", "customer.employee" ]});
+            console.log("users: ", JSON.stringify(imageResults[0], null, 2))
         },
         images: async () => {
             const imageResults = await manager.find(Image, { relations: [ "user", "user.friends", "user.friends.friends" ] });
             console.log("images: ", JSON.stringify(imageResults[0], null, 2))
         },
-        message: async () => {
+        messages: async () => {
             const imageResults = await manager.find(Message, { relations: [ "owner", "receipent", "group" ]});
             console.log("messages: ", JSON.stringify(imageResults, null, 2));
         },
-        group: async () => {
+        groups: async () => {
             const imageResults = await manager.find(Group, { relations: [ "messages", "member", "member.groups" ]});
             console.log("groups: ", JSON.stringify(imageResults, null, 2));
+        },
+        customers: async () => {
+            const imageResults = await manager.find(Customer, { relations: [ "mandants", "role", "inboundTickets", "outboundTickets" ]});
+            console.log("customers: ", JSON.stringify(imageResults, null, 2));
+        },
+        tickets: async () => {
+            const imageResults = await manager.find(Ticket, { relations: [ "from", "to", "state", "messages" ]});
+            console.log("tickets: ", JSON.stringify(imageResults, null, 2));
+        },
+        ticketstates: async () => {
+            const imageResults = await manager.find(Ticketstate, {});
+            console.log("ticketstates: ", JSON.stringify(imageResults, null, 2));
+        },
+        roles: async () => {
+            const imageResults = await manager.find(Role, {});
+            console.log("roles: ", JSON.stringify(imageResults, null, 2));
         }
 
     }
